@@ -22,7 +22,14 @@ class VFELayer(object):
 
     def apply(self, inputs, mask, training):
         # [K, T, 7] tensordot [7, units] = [K, T, units]
+
         pointwise = self.batch_norm.apply(self.dense.apply(inputs), training)
+
+        mask = tf.tile(mask, [1, 1, self.units])
+
+        # Multiply with mask beforehand to not compute voxel features
+        # for zeros
+        pointwise = tf.multiply(pointwise, tf.cast(mask, tf.float32))   
 
         #n [K, 1, units]
         aggregated = tf.reduce_max(pointwise, axis=1, keep_dims=True)
@@ -32,10 +39,6 @@ class VFELayer(object):
 
         # [K, T, 2 * units]
         concatenated = tf.concat([pointwise, repeated], axis=2)
-
-        mask = tf.tile(mask, [1, 1, 2 * self.units])
-
-        concatenated = tf.multiply(concatenated, tf.cast(mask, tf.float32))
 
         return concatenated
 
